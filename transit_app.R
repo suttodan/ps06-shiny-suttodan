@@ -32,15 +32,41 @@ library(shiny)
 
 riders <- read_delim("data/seattle_transit_data.csv")
 
-riders <- riders %>% 
-  filter(Riders != 0)
-
 agencies <- unique(riders$Agency)
 modes <- unique(riders$Mode)
 
-ui <- fluidPage(
+server <- function(input, output) {
+  
+  ridersData <- reactive({
+    req(input$agencySelect, input$modeSelect)
+    ridersTemp <- riders %>% 
+      filter(Agency %in% input$agencySelect, Mode %in% input$modeSelect) %>% 
+      group_by(Agency)
+  })
+  
+  output$mainPlot <- renderUI ({
+    p <- mainPanel(plotOutput(input$selectPlot))
+    p
+  })
+  
+  output$ridershipPlot <- renderPlot({
+    g <- ggplot(ridersData(), aes(x = Agency, y = Riders, fill = Mode)) +
+      geom_col(position = "dodge")
+    g
+  })
+}
+
+ui <- navbarPage("Seattle Transit Ridership",
+  tabPanel("Home"),
+  tabPanel("Plot",
+    titlePanel("Transit Data Plot"),
+  
     sidebarLayout(
       sidebarPanel(
+        selectInput("selectPlot",
+                    label = "Select Plot Type",
+                    choices = list("ridershipPlot" = 1, "Plot 2" = 2),
+                    selected = 1),
         checkboxGroupInput("agencySelect",
                            label = "Agencies",
                            choices = agencies,
@@ -50,22 +76,10 @@ ui <- fluidPage(
                            choices = modes,
                            selected = modes)
       ),
-      mainPanel(plotOutput("ridershipPlot")
+      uiOutput("mainPlot")
     )
-  )
+  ),
+  tabPanel("Table")
 )
 
-server <- function(input, output) {
-  userSelected <- reactive(df(agencySelect, modeSelect))
-  
-  ridersPlot <- riders %>% 
-    filter(????????????????????????????????????????????????????????????) %>% 
-    group_by(Agency)
-  
-  output$ridershipPlot <- renderPlot({
-    ggplot(ridersPlot, aes(x = input$agencySelect, y = Riders, fill = input$modeSelect)) +
-    geom_col(position = "dodge")
-  })
-}
-
-shinyApp(ui = ui, server = server)
+shinyApp(ui, server)
